@@ -1,0 +1,13 @@
+var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/_not-found/page.js")
+R.c("server/chunks/ssr/Desktop_domislink-empire_1_domislink-empire_7c82be58._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__43589356._.js")
+R.c("server/chunks/ssr/0b37b_next_dist_esm_build_templates_app-page_0f82bd7f.js")
+R.c("server/chunks/ssr/[root-of-the-server]__11e5c12b._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__4a6e1100._.js")
+R.c("server/chunks/ssr/_0ff22b07._.js")
+R.c("server/chunks/ssr/3d860_domislink-empire_1_domislink-empire_apps_realestate_src_app_layout_tsx_ab2e25a1._.js")
+R.c("server/chunks/ssr/0b37b_next_dist_client_components_02e27d09._.js")
+R.c("server/chunks/ssr/0b37b_next_dist_client_components_builtin_forbidden_8ba8d2af.js")
+R.c("server/chunks/ssr/65e5f_apps_realestate__next-internal_server_app__not-found_page_actions_a050ddc9.js")
+R.m(2115)
+module.exports=R.m(2115).exports

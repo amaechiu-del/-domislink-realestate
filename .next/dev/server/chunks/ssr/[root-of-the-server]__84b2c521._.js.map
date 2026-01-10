@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/Amaechi%20Ubadike/Desktop/domislink-empire_1/domislink-empire/apps/realestate/src/app/page.tsx"],"sourcesContent":["export default function Home() {\n  return <div style={{background:\"#0a0a0f\",color:\"white\",minHeight:\"100vh\",padding:\"50px\",textAlign:\"center\"}}><h1 style={{color:\"#EEFF00\",fontSize:\"3rem\"}}>DomisLink Real Estate</h1><p>It works!</p></div>\n}\r\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBAAO,ySAAC;QAAI,OAAO;YAAC,YAAW;YAAU,OAAM;YAAQ,WAAU;YAAQ,SAAQ;YAAO,WAAU;QAAQ;;0BAAG,ySAAC;gBAAG,OAAO;oBAAC,OAAM;oBAAU,UAAS;gBAAM;0BAAG;;;;;;0BAA0B,ySAAC;0BAAE;;;;;;;;;;;;AAC1L"}}]
+}
