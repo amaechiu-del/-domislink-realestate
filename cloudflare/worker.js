@@ -1,3 +1,4 @@
+import {createDraft,listMyDrafts} from "./drafts.js";
 import {initializeCheckout,verifyCheckout} from "./payments.js";
 import { quote } from "./pricing.js";
 import { verifyOneLinkToken } from "./one-link-identity.js";
@@ -5,6 +6,8 @@ const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{statu
 export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
+ if(url.pathname==="/api/listings/drafts"&&req.method==="POST")return createDraft(req,env,allowed);
+ if(url.pathname==="/api/listings/mine"&&req.method==="GET")return listMyDrafts(req,env,allowed);
  if(url.pathname==="/api/health"&&req.method==="GET")return json({ok:true,service:"domislinker-marketplace"},200,allowed);
  if(url.pathname==="/api/payments/initialize"&&req.method==="POST")return initializeCheckout(req,env,allowed);
  if(url.pathname==="/api/payments/verify"&&req.method==="POST")return verifyCheckout(req,env,allowed);
