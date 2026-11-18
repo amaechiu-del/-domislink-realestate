@@ -1,3 +1,4 @@
+import {initializeCheckout,verifyCheckout} from "./payments.js";
 import { quote } from "./pricing.js";
 import { verifyOneLinkToken } from "./one-link-identity.js";
 const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","access-control-allow-origin":origin,"vary":"Origin","cache-control":"no-store"}});
@@ -5,6 +6,8 @@ export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
  if(url.pathname==="/api/health"&&req.method==="GET")return json({ok:true,service:"domislinker-marketplace"},200,allowed);
+ if(url.pathname==="/api/payments/initialize"&&req.method==="POST")return initializeCheckout(req,env,allowed);
+ if(url.pathname==="/api/payments/verify"&&req.method==="POST")return verifyCheckout(req,env,allowed);
  if(url.pathname==="/api/pricing/quote"&&req.method==="POST"){
   let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400,allowed)}
   try{return json({quote:quote({type:body.type,days:body.days??45,featured:body.featured??false}),status:"estimate_only",checkout_enabled:false},200,allowed)}
