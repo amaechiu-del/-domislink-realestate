@@ -1,5 +1,5 @@
-import CommunityPicker from "./CommunityPicker";
 "use client";
+import CommunityPicker from "./CommunityPicker";
 import {useState} from "react";
 const API=process.env.NEXT_PUBLIC_DOMISLINKER_API_URL||"";
 type Form={title:string;type:string;community_slug:string;location_label:string;price:string};
