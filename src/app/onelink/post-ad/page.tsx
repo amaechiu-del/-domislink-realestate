@@ -1,3 +1,4 @@
+import CommunityPicker from "./CommunityPicker";
 "use client";
 import {useState} from "react";
 const API=process.env.NEXT_PUBLIC_DOMISLINKER_API_URL||"";
@@ -18,7 +19,7 @@ export default function NewAdvertisement(){
  <form onSubmit={submit} style={{display:"grid",gap:16}}>
  <label>Category<select required value={form.type} onChange={e=>update("type",e.target.value)} style={{display:"block",padding:12,width:"100%"}}>{[["rent","Rent"],["sale","For sale"],["service","Service provider"],["tenant","Tenant request"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
  <label>Advertisement title<input required minLength={8} maxLength={140} value={form.title} onChange={e=>update("title",e.target.value)} placeholder="e.g. Two-bedroom apartment in Ikeja" style={{display:"block",padding:12,width:"100%",boxSizing:"border-box"}}/></label>
- <label>Verified community slug<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" value={form.community_slug} onChange={e=>update("community_slug",e.target.value)} placeholder="lagos-ikeja" style={{display:"block",padding:12,width:"100%",boxSizing:"border-box"}}/></label>
+ <CommunityPicker value={form.community_slug} onChange={v=>update("community_slug",v)}/>
  <label>Location description<input required minLength={3} value={form.location_label} onChange={e=>update("location_label",e.target.value)} placeholder="Ikeja, Lagos" style={{display:"block",padding:12,width:"100%",boxSizing:"border-box"}}/></label>
  <label>Price in NGN<input required type="number" min="0" step="1" value={form.price} onChange={e=>update("price",e.target.value)} style={{display:"block",padding:12,width:"100%",boxSizing:"border-box"}}/></label>
  <button type="submit" style={{background:"#192c69",color:"white",border:0,padding:15,borderRadius:12,cursor:"pointer"}}>Continue to OneLink sign-in</button>
