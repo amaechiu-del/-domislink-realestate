@@ -1,3 +1,4 @@
+import {paystackWebhook} from "./paystack-webhook.js";
 import {createDraft,listMyDrafts} from "./drafts.js";
 import {initializeCheckout,verifyCheckout} from "./payments.js";
 import { quote } from "./pricing.js";
@@ -6,6 +7,11 @@ const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{statu
 export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
+ if(url.pathname==="/api/payments/webhook"&&req.method==="POST")return paystackWebhook(req,env);
+ if(url.pathname==="/api/communities"&&req.method==="GET"){
+  const search=(url.searchParams.get("q")||"").trim().slice(0,60);
+  try{const r=await env.DB.prepare("SELECT slug,name FROM communities WHERE name LIKE ? ORDER BY name LIMIT 30").bind("%"+search.replace(/[\\%_]/g,"")+"%").all();return json({items:r.results||[]},200,allowed)}catch{return json({error:"Communities unavailable"},503,allowed)}
+ }
  if(url.pathname==="/api/listings/drafts"&&req.method==="POST")return createDraft(req,env,allowed);
  if(url.pathname==="/api/listings/mine"&&req.method==="GET")return listMyDrafts(req,env,allowed);
  if(url.pathname==="/api/health"&&req.method==="GET")return json({ok:true,service:"domislinker-marketplace"},200,allowed);
