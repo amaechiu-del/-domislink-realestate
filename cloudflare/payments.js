@@ -29,12 +29,7 @@ export async function verifyCheckout(req,env,origin){
  if(p.status==="success")return respond({verified:true,already_processed:true},200,origin);
  let remote;try{remote=await paystack("/transaction/verify/"+encodeURIComponent(b.reference),env)}catch{return respond({error:"Verification temporarily unavailable"},502,origin)}
  if(remote.status!=="success"||remote.reference!==p.reference||remote.currency!=="NGN"||Number(remote.amount)!==p.amount_kobo)return respond({verified:false,error:"Payment not confirmed"},409,origin);
- // Idempotent transaction: only one verifier may change pending -> success and publish.
- const result=await env.DB.batch([
- env.DB.prepare("UPDATE payments SET status='success' WHERE id=? AND status='pending'").bind(p.id),
- env.DB.prepare("UPDATE listings SET status='published',payment_reference=?,expires_at=datetime('now','+45 days') WHERE id=? AND status='draft'").bind(p.reference,p.listing_id)
- ]);
- // NOTE: D1 batch is atomic, but these updates are not conditional on each other.
- // Production activation must replace this with an explicit fulfillment claim + exact duration persisted at checkout.
- return respond({verified:true,publication_pending_review:true,updates:result.map(x=>x.meta?.changes??0)},200,origin);
+ // Payment verification does not publish: fulfillment must be a separately audited, idempotent transaction.
+ await env.DB.prepare("UPDATE payments SET status='success' WHERE id=? AND status='pending'").bind(p.id).run();
+ return respond({verified:true,publication_pending_review:true},200,origin);
 }
