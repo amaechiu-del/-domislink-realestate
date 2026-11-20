@@ -36,10 +36,13 @@ export async function paystackWebhook(req,env){
   if(!r.ok||!result.status)throw Error("Provider unavailable");
   verified=result.data;
  }catch{return new Response("Retry later",{status:503})}
- const p=await env.DB.prepare("SELECT id,listing_id,reference,amount_kobo,duration_days,agent_id,fulfilled_at FROM payments WHERE reference=?").bind(reference).first();
+ const p=await env.DB.prepare("SELECT id,listing_id,reference,amount_kobo,duration_days,agent_id,fulfilled_at,status FROM payments WHERE reference=?").bind(reference).first();
  if(!p)return new Response("Acknowledged",{status:200});
  if(verified?.status!=="success"||verified.reference!==p.reference||verified.currency!=="NGN"||Number(verified.amount)!==p.amount_kobo)return new Response("Payment mismatch",{status:409});
  if(p.fulfilled_at)return new Response("Acknowledged",{status:200});
+ // A late success for a previously failed reservation is never auto-published:
+ // another checkout may already exist. Retain the provider evidence for review.
+ if(p.status!=="pending")return new Response("Acknowledged: late payment requires manual reconciliation",{status:200});
  try{
   await env.DB.batch([
    env.DB.prepare("UPDATE payments SET status='success' WHERE id=? AND status='pending'").bind(p.id),
