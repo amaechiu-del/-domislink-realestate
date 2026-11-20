@@ -1,3 +1,4 @@
+import {runVoiceSchedule} from "./voice-scheduler.js";
 import {enqueueVoiceJobs,drainVoiceJobs} from "./voice-jobs.js";
 import {processVoice,voiceReadiness} from "./voice-processor.js";
 import {verifyChallenge,receiveWhatsApp} from "./whatsapp-gateway.js";
@@ -86,4 +87,4 @@ export default {async fetch(req,env){
  }
  if(req.method==="POST"&&url.pathname==="/api/listings")return json({error:"Paid publication is not yet enabled"},403,allowed);
  return json({error:"Not found"},404,allowed);
-}};
+},async scheduled(event,env,ctx){ctx.waitUntil(runVoiceSchedule(env));}};
