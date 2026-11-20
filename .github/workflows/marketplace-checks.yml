@@ -6,7 +6,7 @@ on:
       - "src/app/onelink/**"
       - "src/app/api/onelink/**"
       - "package.json"
-      - "scripts/release-preflight.mjs"
+      - "scripts/**"
       - ".github/workflows/marketplace-checks.yml"
   workflow_dispatch:
 permissions:
@@ -27,6 +27,8 @@ jobs:
         run: node --experimental-default-type=module --test cloudflare/*.test.mjs
       - name: SQLite payment and D1 migration integration tests
         run: node --experimental-sqlite --test cloudflare/d1-lifecycle.test.mjs
+      - name: Check guarded D1 bootstrap syntax
+        run: node --check scripts/d1-bootstrap.mjs
       - name: Release preflight
         run: node scripts/release-preflight.mjs
       - name: Install frontend dependencies
