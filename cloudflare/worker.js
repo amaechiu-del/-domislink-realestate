@@ -23,6 +23,18 @@ export default {async fetch(req,env){
   return json({ready:report.configured&&report.pkce_s256_supported===true,issuer:env.ONELINK_ISSUER||null,discovery:report.configured,pkce_s256_supported:report.pkce_s256_supported===true,reason:report.reason||null},200,allowed);
  }
  if(url.pathname==="/api/health"&&req.method==="GET")return json({ok:true,service:"domislinker-marketplace"},200,allowed);
+ if(url.pathname==="/api/ready"&&req.method==="GET"){
+  if(!env.DB)return json({ready:false,reason:"D1 binding missing"},503,allowed);
+  try{
+   const tables=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('communities','listings','payments','commission_ledger','payment_adjustments','commission_adjustments','adjustment_reviews')").all();
+   const found=new Set((tables.results||[]).map(x=>x.name));
+   const missing=["communities","listings","payments","commission_ledger","payment_adjustments","commission_adjustments","adjustment_reviews"].filter(x=>!found.has(x));
+   if(missing.length)return json({ready:false,reason:"Database schema incomplete",missing},503,allowed);
+   const cols=await env.DB.prepare("PRAGMA table_info(listings)").all();
+   if(!(cols.results||[]).some(x=>x.name==="renewal_of_id"))return json({ready:false,reason:"Renewal migration missing"},503,allowed);
+   return json({ready:true,service:"domislinker-marketplace",database:"connected"},200,allowed);
+  }catch{return json({ready:false,reason:"Database query failed"},503,allowed)}
+ }
  if(url.pathname==="/api/payments/reconcile"&&req.method==="POST")return reconcilePayment(req,env,allowed);
  if(url.pathname==="/api/payments/status"&&req.method==="GET")return paymentStatus(req,env,allowed);
  if(url.pathname==="/api/payments/initialize"&&req.method==="POST")return initializeCheckout(req,env,allowed);
