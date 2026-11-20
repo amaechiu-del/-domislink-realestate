@@ -36,7 +36,7 @@ export async function receiveWhatsApp(req,env){
     if(!/^[A-Za-z0-9_.:-]{6,200}$/.test(id)||!/^[0-9]{5,30}$/.test(sender)){ignored++;continue}
     const text=kind==="text"?String(m.text?.body||"").slice(0,4096):null;
     const media=kind==="audio"?m.audio?.id:kind==="image"?m.image?.id:kind==="document"?m.document?.id:null;
-    const result=await env.DB.prepare("INSERT OR IGNORE INTO whatsapp_inbound(id,provider_message_id,business_phone_id,sender_wa_id,message_type,text_body,media_id,language_code) VALUES(?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),id,phone,sender,kind,text,media?String(media).slice(0,200):null,null).run();
+    const result=await env.DB.prepare("INSERT OR IGNORE INTO whatsapp_inbound(id,provider_message_id,business_phone_id,sender_wa_id,message_type,text_body,media_id,language_code,provider_timestamp) VALUES(?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),id,phone,sender,kind,text,media?String(media).slice(0,200):null,null,Number.isFinite(Number(m.timestamp))&&Number(m.timestamp)>0?Number(m.timestamp):null).run();
     stored+=Number(result.meta?.changes||0);
    }
   }
