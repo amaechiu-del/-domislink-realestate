@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
-const endpoints={"initialize":"/api/payments/initialize","verify":"/api/payments/verify"} as const;
+const endpoints={"initialize":"/api/payments/initialize","verify":"/api/payments/verify","reconcile":"/api/payments/reconcile"} as const;
 export async function POST(req:NextRequest,context:{params:Promise<{action:string}>}){
  const {action}=await context.params;
  if(!(action in endpoints))return NextResponse.json({error:"Unknown action"},{status:404});
