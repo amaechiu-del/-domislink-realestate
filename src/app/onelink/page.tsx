@@ -15,7 +15,7 @@ export default function OneLinkMarketplace(){
  return <main style={{minHeight:"100vh",background:"#f7f8fc",color:"#15203b",fontFamily:"system-ui,sans-serif"}}>
  <header style={{background:"#14224b",color:"white",padding:"20px max(20px,5vw)",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
  <strong style={{fontSize:24}}>♛ DomisLinker <small style={{fontSize:12,color:"#ffd34d"}}>THE DIGITAL EMPIRE</small></strong>
- <nav style={{display:"flex",gap:16,alignItems:"center"}}><a href="/" style={{color:"white"}}>Home</a><a href="/listings/create" style={{color:"#ffd34d"}}>Post an ad</a><a href="/onelink" style={{color:"white"}}>OneLink</a></nav></header>
+ <nav style={{display:"flex",gap:16,alignItems:"center"}}><a href="/" style={{color:"white"}}>Home</a><a href="/onelink/post-ad" style={{color:"#ffd34d"}}>Post an ad</a><a href="/onelink/my-ads" style={{color:"white"}}>My ads</a><a href="/onelink" style={{color:"white"}}>OneLink</a></nav></header>
  <section style={{background:"linear-gradient(120deg,#182b64,#6c38b9)",color:"white",padding:"55px max(20px,8vw)"}}>
  <div style={{maxWidth:950,margin:"auto"}}><p style={{color:"#ffe175"}}>GLOBAL COMMUNITIES · PROPERTY · LOCAL SERVICES</p><h1 style={{fontSize:"clamp(30px,5vw,56px)",margin:"12px 0"}}>Find your next place. Discover your community.</h1>
  <p>Explore rentals, homes for sale, local professionals and tenant requests in one place.</p>
