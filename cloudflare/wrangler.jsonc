@@ -2,6 +2,22 @@
   "name": "domislinker-marketplace-api",
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
-  "d1_databases": [{ "binding": "DB", "database_name": "domislinker-db", "database_id": "REPLACE_WITH_D1_DATABASE_ID" }],
-  "vars": { "APP_ORIGIN": "https://propertymarketplace.domislinker.com", "ONELINK_ISSUER": "https://sso.domislink.com" }
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "domislinker-db",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://propertymarketplace.domislinker.com",
+    "ONELINK_ISSUER": "https://sso.domislink.com",
+    "VOICE_CRON_ENABLED": "false",
+    "VOICE_CRON_BATCH_SIZE": "3"
+  },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  }
 }
