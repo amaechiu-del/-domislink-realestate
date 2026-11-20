@@ -8,6 +8,7 @@ export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
  if(url.pathname==="/api/payments/webhook"&&req.method==="POST")return paystackWebhook(req,env);
+ if(origin&&!allowed&&req.method!=="GET"&&req.method!=="HEAD"&&req.method!=="OPTIONS")return json({error:"Origin not allowed"},403,"");
  if(url.pathname==="/api/communities"&&req.method==="GET"){
   const search=(url.searchParams.get("q")||"").trim().slice(0,60);
   try{const r=await env.DB.prepare("SELECT slug,name FROM communities WHERE name LIKE ? ORDER BY name LIMIT 30").bind("%"+search.replace(/[\\%_]/g,"")+"%").all();return json({items:r.results||[]},200,allowed)}catch{return json({error:"Communities unavailable"},503,allowed)}
