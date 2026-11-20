@@ -25,6 +25,7 @@ jobs:
       - name: Marketplace unit tests
         run: node --experimental-default-type=module --test cloudflare/*.test.mjs
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-package-lock; fi
       - name: Build Next.js frontend
         run: npm run build
