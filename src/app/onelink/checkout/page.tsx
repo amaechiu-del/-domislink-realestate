@@ -25,7 +25,7 @@ function Checkout(){
  <label><input type="checkbox" checked={featured} onChange={e=>setFeatured(e.target.checked)}/> Featured placement (+20%)</label>
  <label>Agent referral code (optional)<input value={referral} onChange={e=>setReferral(e.target.value)} style={{display:"block",padding:12,width:"100%",boxSizing:"border-box"}}/></label>
  <p><a href="/onelink/pricing">View estimated prices</a></p><button disabled={busy||!email} onClick={pay} style={{background:"#192c69",color:"white",border:0,borderRadius:12,padding:14}}>{busy?"Connecting to Paystack…":"Proceed to secure payment"}</button>
- {error&&<p role="alert">{error}</p>}{reference&&<section style={{padding:14,background:"#fff5e5",borderRadius:10,marginTop:16}}><p>Existing payment reference: <code>{reference}</code></p><button type="button" disabled={busy} onClick={reconcile}>Check payment with Paystack</button><p>Do not pay again while this transaction is unresolved.</p></section>}{recovery&&<p role="status">{recovery}</p>}</>}
+ {error&&<p role="alert">{error}</p>}{reference&&<section style={{padding:14,background:"#fff5e5",borderRadius:10,marginTop:16}}><p>Existing payment reference: <code>{reference}</code></p><button type="button" disabled={busy} onClick={reconcile}>Check payment with Paystack</button><p>Do not pay again while this transaction is unresolved.</p></section>}{recovery&&<p role="status">{recovery}</p>}{reference&&recovery.includes("Payment confirmed")&&<p><a href={"/onelink/payment-return?reference="+encodeURIComponent(reference)}>Verify confirmed payment and publish</a></p>}</>}
  </section></main>;
 }
 export default function CheckoutPage(){return <Suspense fallback={<p>Loading checkout…</p>}><Checkout/></Suspense>}
