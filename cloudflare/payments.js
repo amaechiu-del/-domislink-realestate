@@ -59,5 +59,28 @@ export async function paymentStatus(req,env,origin){
  if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
  // A pending reservation is NOT proof of a failed charge. Never expire or
  // overwrite it solely based on age; provider reconciliation is required.
- return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:false,reconciliation_required:p.status==="pending"},200,origin);
+ return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:p.status==="failed",reconciliation_required:p.status==="pending"},200,origin);
+}
+
+export async function reconcilePayment(req,env,origin){
+ let identity;try{identity=await auth(req,env)}catch{return respond({error:"Authentication required"},401,origin)}
+ let body;try{body=await req.json()}catch{return respond({error:"Invalid JSON"},400,origin)}
+ const reference=body?.reference;
+ if(typeof reference!=="string"||!/^dlk_[a-f0-9]{32}$/.test(reference))return respond({error:"Invalid reference"},400,origin);
+ let p;try{p=await env.DB.prepare("SELECT p.id,p.reference,p.amount_kobo,p.status,p.fulfilled_at,l.owner_id FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.reference=?").bind(reference).first()}catch{return respond({error:"Database unavailable"},503,origin)}
+ if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
+ if(p.status==="success"||p.fulfilled_at)return respond({status:p.status,verified:true,retry_allowed:false,next:"Already fulfilled or awaiting publication review"},200,origin);
+ if(p.status==="failed")return respond({status:"failed",verified:true,retry_allowed:true},200,origin);
+ if(p.status!=="pending")return respond({status:p.status,retry_allowed:false},409,origin);
+ let remote;try{remote=await paystack("/transaction/verify/"+encodeURIComponent(reference),env)}catch{return respond({status:"pending",retry_allowed:false,reconciliation_required:true,error:"Provider verification unavailable; do not retry yet"},503,origin)}
+ if(remote.reference!==reference||remote.currency!=="NGN"||Number(remote.amount)!==p.amount_kobo)return respond({error:"Provider transaction mismatch; manual review required",retry_allowed:false},409,origin);
+ if(remote.status==="success")return respond({status:"success",verified:true,retry_allowed:false,action:"Verify payment to publish",reference},200,origin);
+ // A provider-confirmed terminal failure can release a reservation.
+ // "abandoned", "pending", "ongoing" and unknown statuses never release it.
+ if(remote.status!=="failed")return respond({status:remote.status||"pending",retry_allowed:false,reconciliation_required:true},200,origin);
+ try{
+  const r=await env.DB.prepare("UPDATE payments SET status='failed' WHERE id=? AND status='pending' AND fulfilled_at IS NULL").bind(p.id).run();
+  if(!r.meta?.changes)return respond({error:"Payment status changed; refresh before retrying",retry_allowed:false},409,origin);
+ }catch{return respond({error:"Unable to reconcile payment",retry_allowed:false},503,origin)}
+ return respond({status:"failed",verified:true,retry_allowed:true,reference},200,origin);
 }
