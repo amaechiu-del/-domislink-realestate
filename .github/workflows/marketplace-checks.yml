@@ -25,6 +25,8 @@ jobs:
           for file in cloudflare/*.js; do node --check --experimental-default-type=module "$file"; done
       - name: Marketplace unit tests
         run: node --experimental-default-type=module --test cloudflare/*.test.mjs
+      - name: SQLite payment and D1 migration integration tests
+        run: node --experimental-sqlite --test cloudflare/d1-lifecycle.test.mjs
       - name: Release preflight
         run: node scripts/release-preflight.mjs
       - name: Install frontend dependencies
