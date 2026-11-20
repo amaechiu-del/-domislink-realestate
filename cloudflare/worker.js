@@ -1,3 +1,4 @@
+import {enqueueVoiceJobs,drainVoiceJobs} from "./voice-jobs.js";
 import {processVoice,voiceReadiness} from "./voice-processor.js";
 import {verifyChallenge,receiveWhatsApp} from "./whatsapp-gateway.js";
 import {submitEnquiry,myEnquiries} from "./enquiries.js";
@@ -12,6 +13,8 @@ const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{statu
 export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, PATCH, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
+ if(url.pathname==="/api/voice/jobs/enqueue"&&req.method==="POST")return enqueueVoiceJobs(req,env);
+ if(url.pathname==="/api/voice/jobs/drain"&&req.method==="POST")return drainVoiceJobs(req,env);
  if(url.pathname==="/api/voice/readiness"&&req.method==="GET")return voiceReadiness(env);
  if(url.pathname==="/api/voice/process"&&req.method==="POST")return processVoice(req,env);
  if(url.pathname==="/api/whatsapp/webhook"&&req.method==="GET")return verifyChallenge(req,env);
