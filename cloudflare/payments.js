@@ -12,7 +12,7 @@ export async function initializeCheckout(req,env,origin){
  if(listing.status!=="draft")return respond({error:"Listing not eligible for checkout"},409,origin);
  let price;try{price=quote({type:listing.type,days:b.days??45,featured:b.featured??false})}catch(e){return respond({error:e.message},400,origin)}
  const outstanding=await env.DB.prepare("SELECT reference FROM payments WHERE listing_id=? AND status IN ('pending','success') ORDER BY created_at DESC LIMIT 1").bind(listing.id).first();
- if(outstanding)return respond({error:"Existing payment requires verification or reconciliation",reference:outstanding.reference},409,origin);
+ if(outstanding)return respond({error:"Existing payment requires verification or reconciliation",reference:outstanding.reference,recovery:"/api/payments/status",retry_allowed:false},409,origin);
  const reference="dlk_"+crypto.randomUUID().replace(/-/g,"");
  const agent=b.referral_code?await env.DB.prepare("SELECT id,identity_subject FROM agents WHERE referral_code=?").bind(b.referral_code).first():null;
  if(b.referral_code&&!agent)return respond({error:"Invalid referral code"},400,origin);
@@ -49,4 +49,15 @@ export async function verifyCheckout(req,env,origin){
  const after=await env.DB.prepare("SELECT p.fulfilled_at,l.status,l.payment_reference FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.id=?").bind(p.id).first();
  const published=!!after?.fulfilled_at&&after.status==="published"&&after.payment_reference===p.reference;
  return respond({verified:true,published,publication_pending_review:!published},200,origin);
+}
+
+export async function paymentStatus(req,env,origin){
+ let identity;try{identity=await auth(req,env)}catch{return respond({error:"Authentication required"},401,origin)}
+ const url=new URL(req.url),reference=url.searchParams.get("reference");
+ if(!reference||!/^dlk_[a-f0-9]{32}$/.test(reference))return respond({error:"Invalid reference"},400,origin);
+ const p=await env.DB.prepare("SELECT p.reference,p.status,p.amount_kobo,p.fulfilled_at,l.owner_id,l.status AS listing_status FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.reference=?").bind(reference).first();
+ if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
+ // A pending reservation is NOT proof of a failed charge. Never expire or
+ // overwrite it solely based on age; provider reconciliation is required.
+ return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:p.status==="failed",reconciliation_required:p.status==="pending"},200,origin);
 }
