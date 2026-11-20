@@ -62,6 +62,12 @@ export async function paymentStatus(req,env,origin){
  return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:p.status==="failed",reconciliation_required:p.status==="pending"},200,origin);
 }
 
+export function classifyPaystackRecovery(remote,payment){
+ if(!remote||remote.reference!==payment.reference||remote.currency!=="NGN"||Number(remote.amount)!==payment.amount_kobo)return "mismatch";
+ if(remote.status==="success")return "success";
+ if(remote.status==="failed")return "failed";
+ return "unresolved";
+}
 export async function reconcilePayment(req,env,origin){
  let identity;try{identity=await auth(req,env)}catch{return respond({error:"Authentication required"},401,origin)}
  let body;try{body=await req.json()}catch{return respond({error:"Invalid JSON"},400,origin)}
@@ -73,11 +79,12 @@ export async function reconcilePayment(req,env,origin){
  if(p.status==="failed")return respond({status:"failed",verified:true,retry_allowed:true},200,origin);
  if(p.status!=="pending")return respond({status:p.status,retry_allowed:false},409,origin);
  let remote;try{remote=await paystack("/transaction/verify/"+encodeURIComponent(reference),env)}catch{return respond({status:"pending",retry_allowed:false,reconciliation_required:true,error:"Provider verification unavailable; do not retry yet"},503,origin)}
- if(remote.reference!==reference||remote.currency!=="NGN"||Number(remote.amount)!==p.amount_kobo)return respond({error:"Provider transaction mismatch; manual review required",retry_allowed:false},409,origin);
- if(remote.status==="success")return respond({status:"success",verified:true,retry_allowed:false,action:"Verify payment to publish",reference},200,origin);
+ const outcome=classifyPaystackRecovery(remote,p);
+ if(outcome==="mismatch")return respond({error:"Provider transaction mismatch; manual review required",retry_allowed:false},409,origin);
+ if(outcome==="success")return respond({status:"success",verified:true,retry_allowed:false,action:"Verify payment to publish",reference},200,origin);
  // A provider-confirmed terminal failure can release a reservation.
  // "abandoned", "pending", "ongoing" and unknown statuses never release it.
- if(remote.status!=="failed")return respond({status:remote.status||"pending",retry_allowed:false,reconciliation_required:true},200,origin);
+ if(outcome!=="failed")return respond({status:remote.status||"pending",retry_allowed:false,reconciliation_required:true},200,origin);
  try{
   const r=await env.DB.prepare("UPDATE payments SET status='failed' WHERE id=? AND status='pending' AND fulfilled_at IS NULL").bind(p.id).run();
   if(!r.meta?.changes)return respond({error:"Payment status changed; refresh before retrying",retry_allowed:false},409,origin);
