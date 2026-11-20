@@ -7,7 +7,7 @@ function database(){
  const db=new DatabaseSync(":memory:");
  db.exec("PRAGMA foreign_keys=ON;");
  db.exec(read("cloudflare/schema.sql"));
- for(const name of ["0002_payment_fulfillment","0003_payment_reservations_adjustments","0004_commission_adjustments","0005_adjustment_reviews","0006_listing_renewals"])db.exec(read("cloudflare/migrations/"+name+".sql"));
+ for(const name of ["0002_payment_fulfillment","0003_payment_reservations_adjustments","0004_commission_adjustments","0005_adjustment_reviews","0006_listing_renewals","0007_community_discovery_enquiries"])db.exec(read("cloudflare/migrations/"+name+".sql"));
  return db;
 }
 function seed(db){
