@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {reconcilePayment,paymentStatus} from "./payments.js";
+import {reconcilePayment,paymentStatus,classifyPaystackRecovery} from "./payments.js";
 import {paystackWebhook,validPaystackSignature} from "./paystack-webhook.js";
 const origin="https://propertymarketplace.domislinker.com";
 const env={};
@@ -39,4 +39,18 @@ test("requires Paystack secret before processing webhook",async()=>{
  const req=new Request("https://api.example.test/api/payments/webhook",{method:"POST",body:"{}"});
  const response=await paystackWebhook(req,{});
  assert.equal(response.status,503);
+});
+
+test("Paystack recovery only releases verified terminal failures",()=>{
+ const p={reference:"dlk_"+"b".repeat(32),amount_kobo:500000};
+ const r=status=>({reference:p.reference,amount:p.amount_kobo,currency:"NGN",status});
+ assert.equal(classifyPaystackRecovery(r("failed"),p),"failed");
+ assert.equal(classifyPaystackRecovery(r("success"),p),"success");
+ for(const state of ["pending","abandoned","ongoing","queued","unknown"]){
+  assert.equal(classifyPaystackRecovery(r(state),p),"unresolved");
+ }
+ assert.equal(classifyPaystackRecovery({...r("failed"),amount:100},p),"mismatch");
+ assert.equal(classifyPaystackRecovery({...r("failed"),currency:"USD"},p),"mismatch");
+ assert.equal(classifyPaystackRecovery({...r("failed"),reference:"other"},p),"mismatch");
+ assert.equal(classifyPaystackRecovery(null,p),"mismatch");
 });
