@@ -59,5 +59,5 @@ export async function paymentStatus(req,env,origin){
  if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
  // A pending reservation is NOT proof of a failed charge. Never expire or
  // overwrite it solely based on age; provider reconciliation is required.
- return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:p.status==="failed",reconciliation_required:p.status==="pending"},200,origin);
+ return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:false,reconciliation_required:p.status==="pending"},200,origin);
 }
