@@ -1,3 +1,4 @@
+import {verifyChallenge,receiveWhatsApp} from "./whatsapp-gateway.js";
 import {submitEnquiry,myEnquiries} from "./enquiries.js";
 import {communityDetail,nearbyCommunities} from "./community-discovery.js";
 import {inspectOneLink} from "./onelink-discovery.js";
@@ -10,6 +11,8 @@ const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{statu
 export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, PATCH, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
+ if(url.pathname==="/api/whatsapp/webhook"&&req.method==="GET")return verifyChallenge(req,env);
+ if(url.pathname==="/api/whatsapp/webhook"&&req.method==="POST")return receiveWhatsApp(req,env);
  if(url.pathname==="/api/payments/webhook"&&req.method==="POST")return paystackWebhook(req,env);
  if(origin&&!allowed&&req.method!=="GET"&&req.method!=="HEAD"&&req.method!=="OPTIONS")return json({error:"Origin not allowed"},403,"");
  if(url.pathname==="/api/communities/detail"&&req.method==="GET")return communityDetail(req,env);
