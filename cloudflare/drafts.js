@@ -18,7 +18,7 @@ export async function listMyDrafts(req,env,origin){
  const bearer=req.headers.get("authorization")||"";
  if(!bearer.startsWith("Bearer "))return json({error:"OneLink sign-in required"},401,origin);
  let identity;try{identity=await verifyOneLinkToken(bearer.slice(7),env)}catch{return json({error:"Invalid OneLink identity"},401,origin)}
- const r=await env.DB.prepare("SELECT id,title,price,type,status,created_at FROM listings WHERE owner_id=? ORDER BY created_at DESC LIMIT 50").bind(identity.subject).all();
+ const r=await env.DB.prepare("SELECT id,title,location_label,price,type,status,created_at,expires_at FROM listings WHERE owner_id=? ORDER BY created_at DESC LIMIT 50").bind(identity.subject).all();
  return json({items:r.results||[]},200,origin);
 }
 
