@@ -9,7 +9,7 @@ export default function NewAdvertisement(){
  const update=(key:keyof Form,value:string)=>setForm(v=>({...v,[key]:value}));
  async function submit(e:React.FormEvent<HTMLFormElement>){
  e.preventDefault();setMessage("");
- try{const r=await fetch("/api/onelink/drafts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...form,price:Number(form.price)})});const d=await r.json();setMessage(r.ok?"Draft saved: "+d.id+". Publication requires verified payment.":d.error||"Please sign in with OneLink.")}catch{setMessage("Unable to save draft")}
+ try{const r=await fetch("/api/onelink/drafts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...form,price:Number(form.price)})});const d=await r.json();if(r.ok&&d.id){window.location.assign("/onelink/checkout?listing_id="+encodeURIComponent(d.id));return}setMessage(d.error||"Please sign in with OneLink.")}catch{setMessage("Unable to save draft")}
  }
  return <main style={{background:"#f7f8fc",minHeight:"100vh",padding:"40px 16px",fontFamily:"system-ui",color:"#162347"}}>
  <section style={{maxWidth:680,margin:"auto",background:"white",padding:28,borderRadius:20}}>
