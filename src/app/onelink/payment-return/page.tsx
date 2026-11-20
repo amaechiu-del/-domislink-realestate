@@ -4,7 +4,9 @@ import {Suspense,useState} from "react";
 const API=process.env.NEXT_PUBLIC_DOMISLINKER_API_URL||"";
 function Receipt(){
  const params=useSearchParams(),reference=params.get("reference")||params.get("trxref")||"";
- const [message,setMessage]=useState("");\n const [checking,setChecking]=useState(false);\n async function verify(){setChecking(true);setMessage("");try{const r=await fetch("/api/onelink/payments/verify",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reference})});const d=await r.json();setMessage(d.published?"Payment verified. Your advertisement is published.":d.verified?"Payment verified; publication requires reconciliation.":d.error||"Payment not confirmed.")}catch{setMessage("Verification temporarily unavailable.")}finally{setChecking(false)}}
+ const [message,setMessage]=useState("");
+ const [checking,setChecking]=useState(false);
+ async function verify(){setChecking(true);setMessage("");try{const r=await fetch("/api/onelink/payments/verify",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reference})});const d=await r.json();setMessage(d.published?"Payment verified. Your advertisement is published.":d.verified?"Payment verified; publication requires reconciliation.":d.error||"Payment not confirmed.")}catch{setMessage("Verification temporarily unavailable.")}finally{setChecking(false)}}
  const valid=/^dlk_[a-f0-9]{32}$/.test(reference);
  return <main style={{minHeight:"100vh",background:"#f6f8fc",padding:"48px 16px",fontFamily:"system-ui",color:"#192b54"}}>
  <section style={{maxWidth:600,margin:"auto",background:"#fff",padding:30,borderRadius:20}}>
