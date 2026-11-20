@@ -20,7 +20,7 @@ jobs:
       - name: Verify Worker syntax and payment tests
         run: |
           for file in cloudflare/*.js; do node --check --experimental-default-type=module "$file"; done
-          node --experimental-default-type=module --test cloudflare/*.test.mjs
+          node --experimental-sqlite --experimental-default-type=module --test cloudflare/*.test.mjs
           node --experimental-sqlite --test cloudflare/d1-lifecycle.test.mjs
       - name: Deploy Worker
         working-directory: cloudflare
