@@ -8,7 +8,7 @@ export async function reviewFinancialAdjustment(db,input){
  if(!row)throw Error("Adjustment not found");
  if(row.state!=="pending")throw Error("Adjustment already reviewed");
  if(decision==="confirm"&&(row.payment_status!=="success"||!row.fulfilled_at||row.amount_kobo>row.payment_amount||row.amount_kobo<=0))throw Error("Payment or adjustment amount requires reconciliation");
- const reversal=decision==="confirm"&&["refund","chargeback"].includes(row.kind)&&row.agent_id&&row.commission_amount?Math.min(row.commission_amount,Math.floor(row.commission_amount*row.amount_kobo/row.payment_amount)):0;
+ const existing=await db.prepare("SELECT COALESCE(SUM(-amount_kobo),0) AS reversed FROM commission_adjustments WHERE payment_id=?").bind(row.payment_id).first();\n const remaining=Math.max(0,(row.commission_amount||0)-Number(existing?.reversed||0));\n const reversal=decision==="confirm"&&["refund","chargeback"].includes(row.kind)&&row.agent_id&&row.commission_amount?Math.min(remaining,Math.floor(row.commission_amount*row.amount_kobo/row.payment_amount)):0;
  const statements=[
   db.prepare("INSERT INTO adjustment_reviews(id,payment_adjustment_id,reviewer_subject,provider_verified_at,provider_evidence_reference,decision) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM payment_adjustments WHERE id=? AND state='pending')").bind(crypto.randomUUID(),adjustmentId,reviewerSubject,providerVerifiedAt,providerEvidenceReference,decision,adjustmentId),
   db.prepare("UPDATE payment_adjustments SET state=? WHERE id=? AND state='pending' AND EXISTS(SELECT 1 FROM adjustment_reviews WHERE payment_adjustment_id=?)").bind(decision==="confirm"?"confirmed":"rejected",adjustmentId,adjustmentId)
