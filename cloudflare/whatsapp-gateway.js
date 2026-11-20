@@ -1,3 +1,4 @@
+import {recordDeliveryStatuses} from "./whatsapp-delivery.js";
 // Meta webhook verification and signed inbound ingestion. No automatic outbound messaging.
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const hex=bytes=>Array.from(new Uint8Array(bytes)).map(x=>x.toString(16).padStart(2,"0")).join("");
@@ -26,6 +27,7 @@ export async function receiveWhatsApp(req,env){
   for(const entry of event.entry.slice(0,20))for(const change of (entry.changes||[]).slice(0,20)){
    if(change.field!=="messages")continue;
    const value=change.value||{},phone=String(value.metadata?.phone_number_id||"");
+   await recordDeliveryStatuses(value,env);
    if(!/^[0-9]{5,30}$/.test(phone))continue;
    const route=await env.DB.prepare("SELECT tenant_id,enabled FROM whatsapp_tenant_routes WHERE business_phone_id=?").bind(phone).first();
    if(!route||route.enabled!==1){ignored++;continue}
