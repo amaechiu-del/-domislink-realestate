@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 const api=process.env.DOMISLINKER_API_URL||"";
 export async function POST(req:NextRequest){
+ const origin=req.headers.get("origin");if(!origin||origin!==req.nextUrl.origin)return NextResponse.json({error:"Invalid request origin"},{status:403});
  if(!api||!api.startsWith("https://"))return NextResponse.json({error:"Marketplace API not configured"},{status:503});
  const secret=process.env.ONELINK_SESSION_KEY,cookie=req.cookies.get("dlk_session")?.value;
  if(!secret||!/^[a-f0-9]{64}$/i.test(secret)||!cookie)return NextResponse.json({error:"Sign in with OneLink first"},{status:401});
