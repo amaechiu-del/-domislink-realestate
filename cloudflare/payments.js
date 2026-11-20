@@ -16,7 +16,7 @@ export async function initializeCheckout(req,env,origin){
  // Persist pending state before invoking provider, so no client-controlled amount is accepted.
  const insert=await env.DB.prepare("INSERT INTO payments(id,reference,listing_id,agent_id,amount_kobo,status,duration_days,featured) VALUES(?,?,?,?,?,'pending',?,?)").bind(crypto.randomUUID(),reference,listing.id,agent?.id||null,price.total_kobo,price.days,price.featured?1:0).run();
  if(!insert.success)return respond({error:"Payment initialization failed"},503,origin);
- try{const data=await paystack("/transaction/initialize",env,{method:"POST",body:JSON.stringify({email:b.email,amount:price.total_kobo,currency:"NGN",reference,metadata:{listing_id:listing.id}})});
+ try{const data=await paystack("/transaction/initialize",env,{method:"POST",body:JSON.stringify({email:b.email,amount:price.total_kobo,currency:"NGN",reference,metadata:{listing_id:listing.id},callback_url:new URL("/onelink/payment-return",env.APP_ORIGIN).toString()})});
  return respond({reference,authorization_url:data.authorization_url,amount_kobo:price.total_kobo},200,origin)}
  catch{return respond({error:"Payment gateway unavailable; no charge confirmed"},502,origin)}
 }
