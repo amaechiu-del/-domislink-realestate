@@ -6,6 +6,7 @@ on:
       - "src/app/onelink/**"
       - "src/app/api/onelink/**"
       - "package.json"
+      - "scripts/release-preflight.mjs"
       - ".github/workflows/marketplace-checks.yml"
   workflow_dispatch:
 permissions:
@@ -24,6 +25,8 @@ jobs:
           for file in cloudflare/*.js; do node --check --experimental-default-type=module "$file"; done
       - name: Marketplace unit tests
         run: node --experimental-default-type=module --test cloudflare/*.test.mjs
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
       - name: Install frontend dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install --no-package-lock; fi
