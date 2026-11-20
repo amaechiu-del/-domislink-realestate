@@ -1,3 +1,5 @@
+import {submitEnquiry,myEnquiries} from "./enquiries.js";
+import {communityDetail,nearbyCommunities} from "./community-discovery.js";
 import {inspectOneLink} from "./onelink-discovery.js";
 import {paystackWebhook} from "./paystack-webhook.js";
 import {createDraft,listMyDrafts,updateDraft,renewListing} from "./drafts.js";
@@ -10,9 +12,13 @@ export default {async fetch(req,env){
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, PATCH, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
  if(url.pathname==="/api/payments/webhook"&&req.method==="POST")return paystackWebhook(req,env);
  if(origin&&!allowed&&req.method!=="GET"&&req.method!=="HEAD"&&req.method!=="OPTIONS")return json({error:"Origin not allowed"},403,"");
+ if(url.pathname==="/api/communities/detail"&&req.method==="GET")return communityDetail(req,env);
+ if(url.pathname==="/api/communities/nearby"&&req.method==="GET")return nearbyCommunities(req,env);
+ if(url.pathname==="/api/enquiries"&&req.method==="POST")return submitEnquiry(req,env);
+ if(url.pathname==="/api/enquiries/mine"&&req.method==="GET")return myEnquiries(req,env);
  if(url.pathname==="/api/communities"&&req.method==="GET"){
   const search=(url.searchParams.get("q")||"").trim().slice(0,60);
-  try{const r=await env.DB.prepare("SELECT slug,name FROM communities WHERE name LIKE ? ORDER BY name LIMIT 30").bind("%"+search.replace(/[\\%_]/g,"")+"%").all();return json({items:r.results||[]},200,allowed)}catch{return json({error:"Communities unavailable"},503,allowed)}
+  try{const r=await env.DB.prepare("SELECT slug,name,city_name,state_name,country_code,latitude,longitude FROM communities WHERE verified=1 AND name LIKE ? ORDER BY name LIMIT 30").bind("%"+search.replace(/[\\%_]/g,"")+"%").all();return json({items:r.results||[]},200,allowed)}catch{return json({error:"Communities unavailable"},503,allowed)}
  }
  if(url.pathname==="/api/listings/drafts"&&req.method==="POST")return createDraft(req,env,allowed);
  if(url.pathname==="/api/listings/drafts"&&req.method==="PATCH")return updateDraft(req,env,allowed);
@@ -32,6 +38,10 @@ export default {async fetch(req,env){
    if(missing.length)return json({ready:false,reason:"Database schema incomplete",missing},503,allowed);
    const cols=await env.DB.prepare("PRAGMA table_info(listings)").all();
    if(!(cols.results||[]).some(x=>x.name==="renewal_of_id"))return json({ready:false,reason:"Renewal migration missing"},503,allowed);
+   const locationCols=await env.DB.prepare("PRAGMA table_info(communities)").all();
+   if(!["country_code","city_name","latitude","longitude","verified"].every(k=>(locationCols.results||[]).some(x=>x.name===k)))return json({ready:false,reason:"Community hierarchy migration missing"},503,allowed);
+   const enquiryTables=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='listing_enquiries'").all();
+   if(!(enquiryTables.results||[]).length)return json({ready:false,reason:"Enquiry migration missing"},503,allowed);
    const paymentCols=await env.DB.prepare("PRAGMA table_info(payments)").all();
    const paymentFields=new Set((paymentCols.results||[]).map(x=>x.name));
    const missingPaymentFields=["duration_days","featured","fulfilled_at"].filter(x=>!paymentFields.has(x));
@@ -60,7 +70,7 @@ export default {async fetch(req,env){
  if(url.pathname==="/api/listings"&&req.method==="GET"){
   const community=url.searchParams.get("community"),type=url.searchParams.get("type");
   if(type&&!["rent","sale","service","tenant"].includes(type))return json({error:"Invalid category"},400,allowed);
-  let sql="SELECT l.id,l.title,l.location_label,l.price,l.type,l.status,c.slug AS community_slug FROM listings l JOIN communities c ON c.id=l.community_id WHERE l.status='published' AND (l.expires_at IS NULL OR l.expires_at > datetime('now'))";
+  let sql="SELECT l.id,l.title,l.location_label,l.price,l.type,l.status,c.slug AS community_slug,c.latitude,c.longitude FROM listings l JOIN communities c ON c.id=l.community_id WHERE l.status='published' AND (l.expires_at IS NULL OR l.expires_at > datetime('now'))";
   const args=[];if(community){sql+=" AND c.slug=?";args.push(community)}if(type){sql+=" AND l.type=?";args.push(type)}
   sql+=" ORDER BY l.created_at DESC LIMIT 50";
   try{const result=await env.DB.prepare(sql).bind(...args).all();return json({items:result.results||[]},200,allowed)}catch{return json({error:"Database unavailable"},503,allowed)}
