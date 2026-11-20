@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 type Listing = { id:string; title:string; location_label:string; community_slug:string; price:number; type:string; status:string };
-const API = process.env.NEXT_PUBLIC_DOMISLINKER_API_URL || "";
 const money = (n:number) => new Intl.NumberFormat("en-NG",{style:"currency",currency:"NGN",maximumFractionDigits:0}).format(n);
 export default function OneLinkMarketplace(){
  const [listings,setListings]=useState<Listing[]>([]);
@@ -9,8 +8,8 @@ export default function OneLinkMarketplace(){
  const [category,setCategory]=useState("all");
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
- useEffect(()=>{let active=true;async function load(){if(!API){setLoading(false);setError("Marketplace API is not configured yet.");return;}
- try{const r=await fetch(API+"/api/listings");if(!r.ok)throw new Error("Marketplace temporarily unavailable");const j=await r.json();if(active)setListings(j.items||[]);}catch(e){if(active)setError(e instanceof Error?e.message:"Unable to load");}finally{if(active)setLoading(false);}}load();return()=>{active=false};},[]);
+ useEffect(()=>{let active=true;async function load(){
+ try{const r=await fetch("/api/onelink/public-listings",{cache:"no-store"});if(!r.ok)throw new Error("Marketplace temporarily unavailable");const j=await r.json();if(active)setListings(j.items||[]);}catch(e){if(active)setError(e instanceof Error?e.message:"Unable to load");}finally{if(active)setLoading(false);}}load();return()=>{active=false};},[]);
  const shown=listings.filter(x=>(category==="all"||x.type===category)&&[x.title,x.location_label,x.community_slug].join(" ").toLowerCase().includes(search.toLowerCase()));
  return <main style={{minHeight:"100vh",background:"#f7f8fc",color:"#15203b",fontFamily:"system-ui,sans-serif"}}>
  <header style={{background:"#14224b",color:"white",padding:"20px max(20px,5vw)",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
