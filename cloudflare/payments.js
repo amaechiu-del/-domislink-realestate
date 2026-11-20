@@ -18,7 +18,11 @@ export async function initializeCheckout(req,env,origin){
  if(b.referral_code&&!agent)return respond({error:"Invalid referral code"},400,origin);
  if(agent?.identity_subject===identity.subject)return respond({error:"Self-referral is not permitted"},403,origin);
  // Persist pending state before invoking provider, so no client-controlled amount is accepted.
- const insert=await env.DB.prepare("INSERT INTO payments(id,reference,listing_id,agent_id,amount_kobo,status,duration_days,featured) VALUES(?,?,?,?,?,'pending',?,?)").bind(crypto.randomUUID(),reference,listing.id,agent?.id||null,price.total_kobo,price.days,price.featured?1:0).run();
+ let insert;
+ try{
+  insert=await env.DB.prepare("INSERT INTO payments(id,reference,listing_id,agent_id,amount_kobo,status,duration_days,featured) VALUES(?,?,?,?,?,'pending',?,?)").bind(crypto.randomUUID(),reference,listing.id,agent?.id||null,price.total_kobo,price.days,price.featured?1:0).run();
+ }catch{return respond({error:"Payment reservation conflict or database unavailable; verify any existing payment"},409,origin)}
+
  if(!insert.success)return respond({error:"Payment initialization failed"},503,origin);
  try{const data=await paystack("/transaction/initialize",env,{method:"POST",body:JSON.stringify({email:b.email,amount:price.total_kobo,currency:"NGN",reference,metadata:{listing_id:listing.id},callback_url:new URL("/onelink/payment-return",env.APP_ORIGIN).toString()})});
  return respond({reference,authorization_url:data.authorization_url,amount_kobo:price.total_kobo},200,origin)}
