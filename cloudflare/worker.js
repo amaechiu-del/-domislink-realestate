@@ -1,7 +1,7 @@
 import {inspectOneLink} from "./onelink-discovery.js";
 import {paystackWebhook} from "./paystack-webhook.js";
 import {createDraft,listMyDrafts,updateDraft,renewListing} from "./drafts.js";
-import {initializeCheckout,verifyCheckout} from "./payments.js";
+import {initializeCheckout,verifyCheckout,paymentStatus} from "./payments.js";
 import { quote } from "./pricing.js";
 import { verifyOneLinkToken } from "./one-link-identity.js";
 const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","access-control-allow-origin":origin,"vary":"Origin","cache-control":"no-store"}});
@@ -23,6 +23,7 @@ export default {async fetch(req,env){
   return json({ready:report.configured&&report.pkce_s256_supported===true,issuer:env.ONELINK_ISSUER||null,discovery:report.configured,pkce_s256_supported:report.pkce_s256_supported===true,reason:report.reason||null},200,allowed);
  }
  if(url.pathname==="/api/health"&&req.method==="GET")return json({ok:true,service:"domislinker-marketplace"},200,allowed);
+ if(url.pathname==="/api/payments/status"&&req.method==="GET")return paymentStatus(req,env,allowed);
  if(url.pathname==="/api/payments/initialize"&&req.method==="POST")return initializeCheckout(req,env,allowed);
  if(url.pathname==="/api/payments/verify"&&req.method==="POST")return verifyCheckout(req,env,allowed);
  if(url.pathname==="/api/pricing/quote"&&req.method==="POST"){
