@@ -1,6 +1,6 @@
 import {inspectOneLink} from "./onelink-discovery.js";
 import {paystackWebhook} from "./paystack-webhook.js";
-import {createDraft,listMyDrafts,updateDraft} from "./drafts.js";
+import {createDraft,listMyDrafts,updateDraft,renewListing} from "./drafts.js";
 import {initializeCheckout,verifyCheckout} from "./payments.js";
 import { quote } from "./pricing.js";
 import { verifyOneLinkToken } from "./one-link-identity.js";
@@ -16,6 +16,7 @@ export default {async fetch(req,env){
  }
  if(url.pathname==="/api/listings/drafts"&&req.method==="POST")return createDraft(req,env,allowed);
  if(url.pathname==="/api/listings/drafts"&&req.method==="PATCH")return updateDraft(req,env,allowed);
+ if(url.pathname==="/api/listings/renew"&&req.method==="POST")return renewListing(req,env,allowed);
  if(url.pathname==="/api/listings/mine"&&req.method==="GET")return listMyDrafts(req,env,allowed);
  if(url.pathname==="/api/auth/readiness"&&req.method==="GET"){
   const report=await inspectOneLink(env);
