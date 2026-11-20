@@ -6,7 +6,7 @@ export async function verifyOneLinkToken(token,env){
  const [header,payload,signature]=token.split(".");
  const h=decode(header),p=decode(payload);
  if(h.alg!=="RS256"||!h.kid)throw new Error("Unsupported token algorithm");
- if(p.iss!==env.ONELINK_ISSUER||p.aud!==env.ONELINK_AUDIENCE||!p.sub||typeof p.exp!=="number"||p.exp<=Date.now()/1000||typeof p.iat!=="number"||p.iat>Date.now()/1000+60)throw new Error("Invalid token claims");
+ if(!env.ONELINK_ISSUER||!env.ONELINK_AUDIENCE||p.iss!==env.ONELINK_ISSUER||!(typeof p.aud==="string"?p.aud===env.ONELINK_AUDIENCE:Array.isArray(p.aud)&&p.aud.includes(env.ONELINK_AUDIENCE))||!p.sub||typeof p.exp!=="number"||p.exp<=Date.now()/1000||typeof p.nbf==="number"&&p.nbf>Date.now()/1000+60||typeof p.iat!=="number"||p.iat>Date.now()/1000+60)throw new Error("Invalid token claims");
  const jwksUrl=env.ONELINK_JWKS_URL||env.ONELINK_ISSUER.replace(/\/$/,"")+"/.well-known/jwks.json";
  const u=new URL(jwksUrl);if(u.protocol!=="https:"||u.origin!==new URL(env.ONELINK_ISSUER).origin)throw new Error("Invalid JWKS origin");
  const res=await fetch(u.toString());if(!res.ok)throw new Error("Identity keys unavailable");
