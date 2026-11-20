@@ -1,3 +1,4 @@
+import {listReplyDrafts,createReplyDraft,reviewReplyDraft} from "./voice-reviews.js";
 import {runVoiceSchedule} from "./voice-scheduler.js";
 import {enqueueVoiceJobs,drainVoiceJobs} from "./voice-jobs.js";
 import {processVoice,voiceReadiness} from "./voice-processor.js";
@@ -14,6 +15,9 @@ const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{statu
 export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, PATCH, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
+ if(url.pathname==="/api/voice/reviews"&&req.method==="GET")return listReplyDrafts(req,env);
+ if(url.pathname==="/api/voice/reviews"&&req.method==="POST")return createReplyDraft(req,env);
+ if(url.pathname==="/api/voice/reviews/decision"&&req.method==="POST")return reviewReplyDraft(req,env);
  if(url.pathname==="/api/voice/jobs/enqueue"&&req.method==="POST")return enqueueVoiceJobs(req,env);
  if(url.pathname==="/api/voice/jobs/drain"&&req.method==="POST")return drainVoiceJobs(req,env);
  if(url.pathname==="/api/voice/readiness"&&req.method==="GET")return voiceReadiness(env);
