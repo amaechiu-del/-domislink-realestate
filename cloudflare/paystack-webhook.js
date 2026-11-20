@@ -1,3 +1,4 @@
+import {adjustmentFromProviderEvent} from "./financial-controls.js";
 // Paystack's x-paystack-signature is an HMAC-SHA512 hex digest of raw request bytes.
 const hex=bytes=>Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,"0")).join("");
 export async function validPaystackSignature(raw,signature,secret){
@@ -13,6 +14,17 @@ export async function paystackWebhook(req,env){
  if(raw.byteLength>65536)return new Response("Payload too large",{status:413});
  if(!await validPaystackSignature(raw,req.headers.get("x-paystack-signature"),env.PAYSTACK_SECRET_KEY))return new Response("Unauthorized",{status:401});
  let event;try{event=JSON.parse(new TextDecoder().decode(raw))}catch{return new Response("Bad payload",{status:400})}
+ const adjustment=adjustmentFromProviderEvent(event);
+ if(adjustment){
+  const payment=await env.DB.prepare("SELECT id,amount_kobo FROM payments WHERE reference=?").bind(adjustment.reference).first();
+  if(!payment)return new Response("Acknowledged: unmatched adjustment",{status:200});
+  // Signed events are evidence for a payout hold, not authority to issue a refund.
+  // A zero/unknown amount is preserved for manual reconciliation.
+  try{
+   await env.DB.prepare("INSERT OR IGNORE INTO payment_adjustments(id,payment_id,provider_event,provider_reference,kind,state,amount_kobo) VALUES(?,?,?,?,?,'pending',?)").bind(crypto.randomUUID(),payment.id,adjustment.providerEvent,adjustment.providerReference,adjustment.kind,adjustment.amountKobo).run();
+  }catch{return new Response("Adjustment persistence unavailable",{status:503})}
+  return new Response("Adjustment recorded for financial review",{status:200});
+ }
  if(event?.event!=="charge.success")return new Response("Acknowledged",{status:200});
  const reference=event?.data?.reference;
  if(typeof reference!=="string"||!/^dlk_[a-f0-9]{32}$/.test(reference))return new Response("Acknowledged",{status:200});
