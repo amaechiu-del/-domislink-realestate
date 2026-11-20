@@ -32,6 +32,12 @@ export default {async fetch(req,env){
    if(missing.length)return json({ready:false,reason:"Database schema incomplete",missing},503,allowed);
    const cols=await env.DB.prepare("PRAGMA table_info(listings)").all();
    if(!(cols.results||[]).some(x=>x.name==="renewal_of_id"))return json({ready:false,reason:"Renewal migration missing"},503,allowed);
+   const paymentCols=await env.DB.prepare("PRAGMA table_info(payments)").all();
+   const paymentFields=new Set((paymentCols.results||[]).map(x=>x.name));
+   const missingPaymentFields=["duration_days","featured","fulfilled_at"].filter(x=>!paymentFields.has(x));
+   if(missingPaymentFields.length)return json({ready:false,reason:"Payment migration missing",missing:missingPaymentFields},503,allowed);
+   const indices=await env.DB.prepare("PRAGMA index_list(payments)").all();
+   if(!(indices.results||[]).some(x=>x.name==="uq_listing_outstanding_payment"))return json({ready:false,reason:"Payment uniqueness migration missing"},503,allowed);
    return json({ready:true,service:"domislinker-marketplace",database:"connected"},200,allowed);
   }catch{return json({ready:false,reason:"Database query failed"},503,allowed)}
  }
