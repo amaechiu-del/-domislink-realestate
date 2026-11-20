@@ -1,15 +1,19 @@
 "use client";
 import { useEffect, useState } from "react";
+type Community = {slug:string;name:string};
 type Listing = { id:string; title:string; location_label:string; community_slug:string; price:number; type:string; status:string };
 const money = (n:number) => new Intl.NumberFormat("en-NG",{style:"currency",currency:"NGN",maximumFractionDigits:0}).format(n);
 export default function OneLinkMarketplace(){
  const [listings,setListings]=useState<Listing[]>([]);
  const [search,setSearch]=useState("");
  const [category,setCategory]=useState("all");
+ const [community,setCommunity]=useState("");
+ const [communities,setCommunities]=useState<Community[]>([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  useEffect(()=>{let active=true;async function load(){
- try{const r=await fetch("/api/onelink/public-listings",{cache:"no-store"});if(!r.ok)throw new Error("Marketplace temporarily unavailable");const j=await r.json();if(active)setListings(j.items||[]);}catch(e){if(active)setError(e instanceof Error?e.message:"Unable to load");}finally{if(active)setLoading(false);}}load();return()=>{active=false};},[]);
+ try{const r=await fetch("/api/onelink/public-listings"+(community?"?community="+encodeURIComponent(community):""),{cache:"no-store"});if(!r.ok)throw new Error("Marketplace temporarily unavailable");const j=await r.json();if(active)setListings(j.items||[]);}catch(e){if(active)setError(e instanceof Error?e.message:"Unable to load");}finally{if(active)setLoading(false);}}load();return()=>{active=false};},[community]);
+ useEffect(()=>{let active=true;const controller=new AbortController();const timeout=setTimeout(async()=>{try{const r=await fetch("/api/onelink/communities?q="+encodeURIComponent(search.slice(0,60)),{signal:controller.signal});if(!r.ok)throw Error("Community search unavailable");const data=await r.json();if(active)setCommunities(Array.isArray(data.items)?data.items:[])}catch{if(active)setCommunities([])}},250);return()=>{active=false;controller.abort();clearTimeout(timeout)}},[search]);
  const shown=listings.filter(x=>(category==="all"||x.type===category)&&[x.title,x.location_label,x.community_slug].join(" ").toLowerCase().includes(search.toLowerCase()));
  return <main style={{minHeight:"100vh",background:"#f7f8fc",color:"#15203b",fontFamily:"system-ui,sans-serif"}}>
  <header style={{background:"#14224b",color:"white",padding:"20px max(20px,5vw)",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
@@ -20,6 +24,7 @@ export default function OneLinkMarketplace(){
  <p>Explore rentals, homes for sale, local professionals and tenant requests in one place.</p>
  <input aria-label="Search communities or listings" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search community, city or property…" style={{width:"100%",maxWidth:650,padding:17,borderRadius:12,border:0,fontSize:16,boxSizing:"border-box"}} /></div></section>
  <section style={{maxWidth:1050,margin:"auto",padding:"30px 20px"}}>
+ <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center",marginBottom:20}}><label htmlFor="community-filter">Community</label><select id="community-filter" value={community} onChange={e=>{setCommunity(e.target.value);setLoading(true);setError("");}} style={{padding:12,borderRadius:10,minWidth:220}}><option value="">All communities</option>{communities.map(x=><option key={x.slug} value={x.slug}>{x.name}</option>)}{community&&!communities.some(x=>x.slug===community)&&<option value={community}>{community}</option>}</select>{community&&<button type="button" onClick={()=>{setCommunity("");setLoading(true);setError("");}}>Clear location</button>}</div>
  <div style={{display:"flex",gap:9,flexWrap:"wrap",marginBottom:25}}>{[["all","All"],["rent","Rent"],["sale","For sale"],["service","Professionals"],["tenant","Tenant requests"]].map(([key,label])=><button key={key} onClick={()=>setCategory(key)} style={{padding:"11px 18px",borderRadius:24,border:"1px solid #ddd",background:category===key?"#182b64":"white",color:category===key?"white":"#15203b",cursor:"pointer"}}>{label}</button>)}</div>
  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16,marginBottom:30}}>
  {[["🏘️","Explore communities","Search recognizable local areas"],["🛠️","Find professionals","Plumbers, electricians, movers and more"],["📣","Become an agent","Share referrals and earn on attributed sales"],["✨","AI ad studio","Create attractive listing copy and cards"]].map(([icon,title,desc])=><article key={title} style={{background:"white",padding:22,borderRadius:16,border:"1px solid #e5e8f0"}}><div style={{fontSize:30}}>{icon}</div><h3>{title}</h3><p style={{color:"#58647b"}}>{desc}</p></article>)}</div>
