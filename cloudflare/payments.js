@@ -11,8 +11,12 @@ export async function initializeCheckout(req,env,origin){
  if(!listing||listing.owner_id!==identity.subject)return respond({error:"Listing not found"},404,origin);
  if(listing.status!=="draft")return respond({error:"Listing not eligible for checkout"},409,origin);
  let price;try{price=quote({type:listing.type,days:b.days??45,featured:b.featured??false})}catch(e){return respond({error:e.message},400,origin)}
+ const outstanding=await env.DB.prepare("SELECT reference FROM payments WHERE listing_id=? AND status IN ('pending','success') ORDER BY created_at DESC LIMIT 1").bind(listing.id).first();
+ if(outstanding)return respond({error:"Existing payment requires verification or reconciliation",reference:outstanding.reference},409,origin);
  const reference="dlk_"+crypto.randomUUID().replace(/-/g,"");
- const agent=b.referral_code?await env.DB.prepare("SELECT id FROM agents WHERE referral_code=?").bind(b.referral_code).first():null;
+ const agent=b.referral_code?await env.DB.prepare("SELECT id,identity_subject FROM agents WHERE referral_code=?").bind(b.referral_code).first():null;
+ if(b.referral_code&&!agent)return respond({error:"Invalid referral code"},400,origin);
+ if(agent?.identity_subject===identity.subject)return respond({error:"Self-referral is not permitted"},403,origin);
  // Persist pending state before invoking provider, so no client-controlled amount is accepted.
  const insert=await env.DB.prepare("INSERT INTO payments(id,reference,listing_id,agent_id,amount_kobo,status,duration_days,featured) VALUES(?,?,?,?,?,'pending',?,?)").bind(crypto.randomUUID(),reference,listing.id,agent?.id||null,price.total_kobo,price.days,price.featured?1:0).run();
  if(!insert.success)return respond({error:"Payment initialization failed"},503,origin);
