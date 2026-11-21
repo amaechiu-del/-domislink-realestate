@@ -21,6 +21,8 @@ export async function sendApprovedVoice(req,env,fetcher=fetch){
  const usage=await env.DB.prepare("SELECT COALESCE(SUM(units),0) AS units FROM whatsapp_usage_events WHERE tenant_id=? AND operation='tts' AND created_at>=strftime('%Y-%m-01','now')").bind(row.tenant_id).first();
  const estimatedSeconds=Math.max(1,Math.ceil(row.body.length/12));
  if(Number(usage?.units||0)+estimatedSeconds>row.monthly_voice_seconds)return json({error:"Voice quota exceeded"},429);
+ const textReservation=await env.DB.prepare("SELECT state FROM whatsapp_send_requests WHERE draft_id=?").bind(row.id).first();
+ if(textReservation)return json({error:"Draft already reserved for text delivery"},409);
  const id=crypto.randomUUID();
  const reserve=await env.DB.prepare("INSERT OR IGNORE INTO whatsapp_voice_send_requests(id,draft_id,tenant_id) VALUES(?,?,?)").bind(id,row.id,row.tenant_id).run();
  if(Number(reserve.meta?.changes||0)!==1)return json({error:"Voice send already reserved; reconcile manually"},409);
