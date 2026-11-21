@@ -20,6 +20,8 @@ export async function sendApprovedReply(req,env,fetcher=fetch){
  if(!Number.isSafeInteger(row.last_inbound)||row.last_inbound>now+60||now-row.last_inbound>=86400)return json({error:"WhatsApp customer service window expired"},403);
  const previous=await env.DB.prepare("SELECT state FROM whatsapp_send_requests WHERE draft_id=?").bind(row.id).first();
  if(previous)return json({error:"Send already reserved; manual reconciliation required",state:previous.state},409);
+ const voiceReservation=await env.DB.prepare("SELECT state FROM whatsapp_voice_send_requests WHERE draft_id=?").bind(row.id).first();
+ if(voiceReservation)return json({error:"Draft already reserved for voice delivery"},409);
  const sendId=crypto.randomUUID();
  const reservation=await env.DB.prepare("INSERT OR IGNORE INTO whatsapp_send_requests(id,draft_id,tenant_id,recipient_wa_id,state) VALUES(?,?,?,?,'reserved')").bind(sendId,row.id,row.tenant_id,row.recipient_wa_id).run();
  if(Number(reservation.meta?.changes||0)!==1)return json({error:"Duplicate send reservation"},409);
