@@ -6,7 +6,7 @@ import {sendApprovedReply} from "./whatsapp-outbound.js";
 import {synthesizeVoice} from "./elevenlabs-tts.js";
 function fixture(){
  const db=new DatabaseSync(":memory:");db.exec(readFileSync("cloudflare/schema.sql","utf8"));
- for(const name of ["0002_payment_fulfillment","0003_payment_reservations_adjustments","0004_commission_adjustments","0005_adjustment_reviews","0006_listing_renewals","0007_community_discovery_enquiries","0008_whatsapp_voice_gateway","0009_whatsapp_voice_processing","0010_whatsapp_voice_jobs","0011_whatsapp_agent_command","0012_whatsapp_outbound_controls"])db.exec(readFileSync("cloudflare/migrations/"+name+".sql","utf8"));
+ for(const name of ["0002_payment_fulfillment","0003_payment_reservations_adjustments","0004_commission_adjustments","0005_adjustment_reviews","0006_listing_renewals","0007_community_discovery_enquiries","0008_whatsapp_voice_gateway","0009_whatsapp_voice_processing","0010_whatsapp_voice_jobs","0011_whatsapp_agent_command","0012_whatsapp_outbound_controls","0013_whatsapp_voice_billing"])db.exec(readFileSync("cloudflare/migrations/"+name+".sql","utf8"));
  const timestamp=Math.floor(Date.now()/1000)-100;
  db.prepare("INSERT INTO whatsapp_tenant_routes(business_phone_id,tenant_id,enabled) VALUES('1234567890','tenant1',1)").run();
  db.prepare("INSERT INTO whatsapp_inbound(id,provider_message_id,business_phone_id,sender_wa_id,message_type,provider_timestamp) VALUES('11111111-1111-1111-1111-111111111111','wamid.sample123','1234567890','2348012345678','text',?)").run(timestamp);
