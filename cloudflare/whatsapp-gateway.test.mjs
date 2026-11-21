@@ -7,7 +7,7 @@ const secret="test-secret";
 async function signature(raw){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return "sha256="+Buffer.from(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(raw))).toString("hex")}
 function env(){
  const db=new DatabaseSync(":memory:");db.exec(readFileSync("cloudflare/schema.sql","utf8"));
- for(const file of ["0002_payment_fulfillment","0003_payment_reservations_adjustments","0004_commission_adjustments","0005_adjustment_reviews","0006_listing_renewals","0007_community_discovery_enquiries","0008_whatsapp_voice_gateway"])db.exec(readFileSync("cloudflare/migrations/"+file+".sql","utf8"));
+ for(const file of ["0002_payment_fulfillment","0003_payment_reservations_adjustments","0004_commission_adjustments","0005_adjustment_reviews","0006_listing_renewals","0007_community_discovery_enquiries","0008_whatsapp_voice_gateway","0009_whatsapp_voice_processing","0010_whatsapp_voice_jobs","0011_whatsapp_agent_command","0012_whatsapp_outbound_controls"])db.exec(readFileSync("cloudflare/migrations/"+file+".sql","utf8"));
  db.exec("INSERT INTO whatsapp_tenant_routes(business_phone_id,tenant_id,enabled) VALUES('1234567890','tenant-1',1)");
  const DB={prepare(sql){const statement=db.prepare(sql);return {bind(...args){return {first:async()=>statement.get(...args),run:async()=>({meta:{changes:statement.run(...args).changes}})}}}}};
  return {db,DB,WHATSAPP_APP_SECRET:secret,WHATSAPP_VERIFY_TOKEN:"verify-token"};
