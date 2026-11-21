@@ -1,0 +1,38 @@
+name: Marketplace verification
+on:
+  pull_request:
+    paths:
+      - "cloudflare/**"
+      - "src/app/onelink/**"
+      - "src/app/api/onelink/**"
+      - "package.json"
+      - "scripts/**"
+      - ".github/workflows/marketplace-checks.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax check Worker modules
+        run: |
+          for file in cloudflare/*.js; do node --check --experimental-default-type=module "$file"; done
+      - name: Marketplace unit tests
+        run: node --experimental-sqlite --experimental-default-type=module --test cloudflare/*.test.mjs
+      - name: SQLite payment and D1 migration integration tests
+        run: node --experimental-sqlite --test cloudflare/d1-lifecycle.test.mjs
+      - name: Check guarded D1 bootstrap syntax
+        run: node --check scripts/d1-bootstrap.mjs
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs
+      - name: Install frontend dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-package-lock; fi
+      - name: Build Next.js frontend
+        run: npm run build
