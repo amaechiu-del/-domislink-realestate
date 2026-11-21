@@ -1,3 +1,4 @@
+import {communicationsBilling} from "./communications-billing.js";
 import {sendApprovedVoice} from "./whatsapp-voice-outbound.js";
 import {sendApprovedReply} from "./whatsapp-outbound.js";
 import {agentInbox,agentDraft,agentDecision} from "./agent-command.js";
@@ -18,6 +19,7 @@ const json=(data,status=200,origin="")=>new Response(JSON.stringify(data),{statu
 export default {async fetch(req,env){
  const url=new URL(req.url),origin=req.headers.get("Origin")||"",allowed=origin===env.APP_ORIGIN?origin:"";
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":allowed,"access-control-allow-methods":"GET, POST, PATCH, OPTIONS","access-control-allow-headers":"Content-Type, Authorization","vary":"Origin"}});
+ if(url.pathname==="/api/communications/billing"&&req.method==="GET")return communicationsBilling(req,env);
  if(url.pathname==="/api/whatsapp/send-approved-voice"&&req.method==="POST")return sendApprovedVoice(req,env);
  if(url.pathname==="/api/whatsapp/send-approved"&&req.method==="POST")return sendApprovedReply(req,env);
  if(url.pathname==="/api/agents/inbox"&&req.method==="GET")return agentInbox(req,env);
