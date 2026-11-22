@@ -1,3 +1,4 @@
+import {reserveSend} from "./send-reservation.js";
 // Deliberately fail-closed WhatsApp sender: only approved drafts within an active customer service window.
 // Templates and AI-generated outbound voice remain disabled until provider/template approval is integrated.
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
@@ -23,6 +24,7 @@ export async function sendApprovedReply(req,env,fetcher=fetch){
  const voiceReservation=await env.DB.prepare("SELECT state FROM whatsapp_voice_send_requests WHERE draft_id=?").bind(row.id).first();
  if(voiceReservation)return json({error:"Draft already reserved for voice delivery"},409);
  const sendId=crypto.randomUUID();
+ if(!await reserveSend(env,{draftId:row.id,tenantId:row.tenant_id,channel:"text",reservationId:sendId}))return json({error:"Draft already reserved across channels"},409);
  const reservation=await env.DB.prepare("INSERT OR IGNORE INTO whatsapp_send_requests(id,draft_id,tenant_id,recipient_wa_id,state) VALUES(?,?,?,?,'reserved')").bind(sendId,row.id,row.tenant_id,row.recipient_wa_id).run();
  if(Number(reservation.meta?.changes||0)!==1)return json({error:"Duplicate send reservation"},409);
  // Reserve before calling Meta: ambiguous network outcomes never trigger automatic duplicate sends.
