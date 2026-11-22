@@ -1,6 +1,6 @@
 import {readFileSync} from "node:fs";
 import {spawnSync} from "node:child_process";
-const files=["schema.sql","migrations/0002_payment_fulfillment.sql","migrations/0003_payment_reservations_adjustments.sql","migrations/0004_commission_adjustments.sql","migrations/0005_adjustment_reviews.sql","migrations/0006_listing_renewals.sql","migrations/0007_community_discovery_enquiries.sql","migrations/0008_whatsapp_voice_gateway.sql","migrations/0009_whatsapp_voice_processing.sql","migrations/0010_whatsapp_voice_jobs.sql","migrations/0011_whatsapp_agent_command.sql","migrations/0012_whatsapp_outbound_controls.sql","migrations/0013_whatsapp_voice_billing.sql"];
+const files=["schema.sql","migrations/0002_payment_fulfillment.sql","migrations/0003_payment_reservations_adjustments.sql","migrations/0004_commission_adjustments.sql","migrations/0005_adjustment_reviews.sql","migrations/0006_listing_renewals.sql","migrations/0007_community_discovery_enquiries.sql","migrations/0008_whatsapp_voice_gateway.sql","migrations/0009_whatsapp_voice_processing.sql","migrations/0010_whatsapp_voice_jobs.sql","migrations/0011_whatsapp_agent_command.sql","migrations/0012_whatsapp_outbound_controls.sql","migrations/0013_whatsapp_voice_billing.sql","migrations/0014_whatsapp_paystack_safeguards.sql"];
 const args=process.argv.slice(2),apply=args.includes("--apply"),remote=args.includes("--remote");
 if(apply&&!remote){console.error("Refusing mutation without --remote");process.exit(2)}
 const config=JSON.parse(readFileSync("cloudflare/wrangler.jsonc","utf8"));
