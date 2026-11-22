@@ -1,3 +1,4 @@
+import {reserveSend} from "./send-reservation.js";
 import {synthesizeVoice} from "./elevenlabs-tts.js";
 const json=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const uuid=x=>typeof x==="string"&&/^[0-9a-f-]{36}$/i.test(x);
@@ -24,6 +25,7 @@ export async function sendApprovedVoice(req,env,fetcher=fetch){
  const textReservation=await env.DB.prepare("SELECT state FROM whatsapp_send_requests WHERE draft_id=?").bind(row.id).first();
  if(textReservation)return json({error:"Draft already reserved for text delivery"},409);
  const id=crypto.randomUUID();
+ if(!await reserveSend(env,{draftId:row.id,tenantId:row.tenant_id,channel:"audio",reservationId:id}))return json({error:"Draft already reserved across channels"},409);
  const reserve=await env.DB.prepare("INSERT OR IGNORE INTO whatsapp_voice_send_requests(id,draft_id,tenant_id) VALUES(?,?,?)").bind(id,row.id,row.tenant_id).run();
  if(Number(reserve.meta?.changes||0)!==1)return json({error:"Voice send already reserved; reconcile manually"},409);
  try{
