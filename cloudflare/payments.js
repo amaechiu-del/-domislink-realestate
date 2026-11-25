@@ -1,0 +1,93 @@
+import {quote} from "./pricing.js";
+import {verifyOneLinkToken} from "./one-link-identity.js";
+const respond=(body,status=200,origin="")=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","access-control-allow-origin":origin,"vary":"Origin","cache-control":"no-store"}});
+const auth=async(req,env)=>{const h=req.headers.get("authorization")||"";if(!h.startsWith("Bearer "))throw Error("Authentication required");return verifyOneLinkToken(h.slice(7),env)};
+const paystack=async(path,env,init={})=>{if(!env.PAYSTACK_SECRET_KEY)throw Error("Paystack is not configured");const r=await fetch("https://api.paystack.co"+path,{...init,headers:{"authorization":"Bearer "+env.PAYSTACK_SECRET_KEY,"content-type":"application/json",...(init.headers||{})}});const data=await r.json();if(!r.ok||!data.status)throw Error("Payment provider error");return data.data};
+export async function initializeCheckout(req,env,origin){
+ let identity;try{identity=await auth(req,env)}catch{return respond({error:"Valid OneLink sign-in required"},401,origin)}
+ let b;try{b=await req.json()}catch{return respond({error:"Invalid JSON"},400,origin)}
+ if(!b||typeof b.listing_id!=="string"||typeof b.email!=="string"||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email))return respond({error:"Listing ID and email required"},400,origin);
+ const listing=await env.DB.prepare("SELECT id,owner_id,type,status FROM listings WHERE id=?").bind(b.listing_id).first();
+ if(!listing||listing.owner_id!==identity.subject)return respond({error:"Listing not found"},404,origin);
+ if(listing.status!=="draft")return respond({error:"Listing not eligible for checkout"},409,origin);
+ let price;try{price=quote({type:listing.type,days:b.days??45,featured:b.featured??false})}catch(e){return respond({error:e.message},400,origin)}
+ const outstanding=await env.DB.prepare("SELECT reference FROM payments WHERE listing_id=? AND status IN ('pending','success') ORDER BY created_at DESC LIMIT 1").bind(listing.id).first();
+ if(outstanding)return respond({error:"Existing payment requires verification or reconciliation",reference:outstanding.reference,recovery:"/api/payments/status",retry_allowed:false},409,origin);
+ const reference="dlk_"+crypto.randomUUID().replace(/-/g,"");
+ const agent=b.referral_code?await env.DB.prepare("SELECT id,identity_subject FROM agents WHERE referral_code=?").bind(b.referral_code).first():null;
+ if(b.referral_code&&!agent)return respond({error:"Invalid referral code"},400,origin);
+ if(agent?.identity_subject===identity.subject)return respond({error:"Self-referral is not permitted"},403,origin);
+ // Persist pending state before invoking provider, so no client-controlled amount is accepted.
+ let insert;
+ try{
+  insert=await env.DB.prepare("INSERT INTO payments(id,reference,listing_id,agent_id,amount_kobo,status,duration_days,featured) VALUES(?,?,?,?,?,'pending',?,?)").bind(crypto.randomUUID(),reference,listing.id,agent?.id||null,price.total_kobo,price.days,price.featured?1:0).run();
+ }catch{return respond({error:"Payment reservation conflict or database unavailable; verify any existing payment"},409,origin)}
+
+ if(!insert.success)return respond({error:"Payment initialization failed"},503,origin);
+ try{const data=await paystack("/transaction/initialize",env,{method:"POST",body:JSON.stringify({email:b.email,amount:price.total_kobo,currency:"NGN",reference,metadata:{listing_id:listing.id},callback_url:new URL("/onelink/payment-return",env.APP_ORIGIN).toString()})});
+ return respond({reference,authorization_url:data.authorization_url,amount_kobo:price.total_kobo},200,origin)}
+ catch{return respond({error:"Payment gateway unavailable; no charge confirmed"},502,origin)}
+}
+export async function verifyCheckout(req,env,origin){
+ let identity;try{identity=await auth(req,env)}catch{return respond({error:"Authentication required"},401,origin)}
+ let b;try{b=await req.json()}catch{return respond({error:"Invalid JSON"},400,origin)}
+ if(typeof b?.reference!=="string"||!/^dlk_[a-f0-9]{32}$/.test(b.reference))return respond({error:"Invalid reference"},400,origin);
+ const p=await env.DB.prepare("SELECT p.*,l.owner_id,l.type,l.status AS listing_status FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.reference=?").bind(b.reference).first();
+ if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
+ if(p.status==="success"&&p.fulfilled_at)return respond({verified:true,published:true,already_processed:true},200,origin);
+ let remote;try{remote=await paystack("/transaction/verify/"+encodeURIComponent(b.reference),env)}catch{return respond({error:"Verification temporarily unavailable"},502,origin)}
+ if(remote.status!=="success"||remote.reference!==p.reference||remote.currency!=="NGN"||Number(remote.amount)!==p.amount_kobo)return respond({verified:false,error:"Payment not confirmed"},409,origin);
+ // D1 batch executes atomically. A successful payment is published only when its
+ // listing remains draft. Commission is derived from the verified payment record.
+ const commands=[
+  env.DB.prepare("UPDATE payments SET status='success' WHERE id=? AND status='pending'").bind(p.id),
+  env.DB.prepare("UPDATE listings SET status='published',payment_reference=?,expires_at=datetime('now', '+' || ? || ' days') WHERE id=? AND status='draft' AND EXISTS (SELECT 1 FROM payments WHERE id=? AND status='success')").bind(p.reference,p.duration_days,p.listing_id,p.id),
+  env.DB.prepare("UPDATE payments SET fulfilled_at=CURRENT_TIMESTAMP WHERE id=? AND fulfilled_at IS NULL AND EXISTS (SELECT 1 FROM listings WHERE id=? AND payment_reference=? AND status='published')").bind(p.id,p.listing_id,p.reference),
+  env.DB.prepare("INSERT OR IGNORE INTO commission_ledger(id,payment_id,agent_id,amount_kobo) SELECT ?,p.id,p.agent_id,CAST(p.amount_kobo*30/100 AS INTEGER) FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.id=? AND p.status='success' AND p.fulfilled_at IS NOT NULL AND p.agent_id IS NOT NULL AND l.payment_reference=p.reference").bind(crypto.randomUUID(),p.id)
+ ];
+ try{await env.DB.batch(commands)}catch{return respond({verified:true,publication_pending_review:true,error:"Fulfillment requires reconciliation"},503,origin)}
+ const after=await env.DB.prepare("SELECT p.fulfilled_at,l.status,l.payment_reference FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.id=?").bind(p.id).first();
+ const published=!!after?.fulfilled_at&&after.status==="published"&&after.payment_reference===p.reference;
+ return respond({verified:true,published,publication_pending_review:!published},200,origin);
+}
+
+export async function paymentStatus(req,env,origin){
+ let identity;try{identity=await auth(req,env)}catch{return respond({error:"Authentication required"},401,origin)}
+ const url=new URL(req.url),reference=url.searchParams.get("reference");
+ if(!reference||!/^dlk_[a-f0-9]{32}$/.test(reference))return respond({error:"Invalid reference"},400,origin);
+ const p=await env.DB.prepare("SELECT p.reference,p.status,p.amount_kobo,p.fulfilled_at,l.owner_id,l.status AS listing_status FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.reference=?").bind(reference).first();
+ if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
+ // A pending reservation is NOT proof of a failed charge. Never expire or
+ // overwrite it solely based on age; provider reconciliation is required.
+ return respond({reference:p.reference,status:p.status,listing_status:p.listing_status,published:p.status==="success"&&!!p.fulfilled_at,retry_allowed:p.status==="failed",reconciliation_required:p.status==="pending"},200,origin);
+}
+
+export function classifyPaystackRecovery(remote,payment){
+ if(!remote||remote.reference!==payment.reference||remote.currency!=="NGN"||Number(remote.amount)!==payment.amount_kobo)return "mismatch";
+ if(remote.status==="success")return "success";
+ if(remote.status==="failed")return "failed";
+ return "unresolved";
+}
+export async function reconcilePayment(req,env,origin){
+ let identity;try{identity=await auth(req,env)}catch{return respond({error:"Authentication required"},401,origin)}
+ let body;try{body=await req.json()}catch{return respond({error:"Invalid JSON"},400,origin)}
+ const reference=body?.reference;
+ if(typeof reference!=="string"||!/^dlk_[a-f0-9]{32}$/.test(reference))return respond({error:"Invalid reference"},400,origin);
+ let p;try{p=await env.DB.prepare("SELECT p.id,p.reference,p.amount_kobo,p.status,p.fulfilled_at,l.owner_id FROM payments p JOIN listings l ON l.id=p.listing_id WHERE p.reference=?").bind(reference).first()}catch{return respond({error:"Database unavailable"},503,origin)}
+ if(!p||p.owner_id!==identity.subject)return respond({error:"Payment not found"},404,origin);
+ if(p.status==="success"||p.fulfilled_at)return respond({status:p.status,verified:true,retry_allowed:false,next:"Already fulfilled or awaiting publication review"},200,origin);
+ if(p.status==="failed")return respond({status:"failed",verified:true,retry_allowed:true},200,origin);
+ if(p.status!=="pending")return respond({status:p.status,retry_allowed:false},409,origin);
+ let remote;try{remote=await paystack("/transaction/verify/"+encodeURIComponent(reference),env)}catch{return respond({status:"pending",retry_allowed:false,reconciliation_required:true,error:"Provider verification unavailable; do not retry yet"},503,origin)}
+ const outcome=classifyPaystackRecovery(remote,p);
+ if(outcome==="mismatch")return respond({error:"Provider transaction mismatch; manual review required",retry_allowed:false},409,origin);
+ if(outcome==="success")return respond({status:"success",verified:true,retry_allowed:false,action:"Verify payment to publish",reference},200,origin);
+ // A provider-confirmed terminal failure can release a reservation.
+ // "abandoned", "pending", "ongoing" and unknown statuses never release it.
+ if(outcome!=="failed")return respond({status:remote.status||"pending",retry_allowed:false,reconciliation_required:true},200,origin);
+ try{
+  const r=await env.DB.prepare("UPDATE payments SET status='failed' WHERE id=? AND status='pending' AND fulfilled_at IS NULL").bind(p.id).run();
+  if(!r.meta?.changes)return respond({error:"Payment status changed; refresh before retrying",retry_allowed:false},409,origin);
+ }catch{return respond({error:"Unable to reconcile payment",retry_allowed:false},503,origin)}
+ return respond({status:"failed",verified:true,retry_allowed:true,reference},200,origin);
+}
